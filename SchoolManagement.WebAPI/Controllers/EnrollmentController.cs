@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SchoolManagement.Application.DTOs.Enrollment;
 using SchoolManagement.Application.Interfaces;
+using SchoolManagement.Application.Responses;
 
 namespace SchoolManagement.WebAPI.Controllers
 {
@@ -20,6 +21,14 @@ namespace SchoolManagement.WebAPI.Controllers
         [HttpPost("enroll")]
         public async Task<IActionResult> Enroll([FromBody] EnrollStudentRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                var errorMessage = string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage));
+
+                return BadRequest(ApiResponse<string>.Fail(errorMessage, 400));
+            }
             var result = await _enrollmentService.EnrollAsync(request);
             return StatusCode(result.Code, result);
         }

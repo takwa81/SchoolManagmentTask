@@ -11,6 +11,8 @@ namespace SchoolManagement.Application.DTOs.Grade
         public int AssignmentId { get; set; }
         public string AssignmentTitle { get; set; }
         public float Score { get; set; }
+        public string? Feedback { get; set; }
+
     }
 
 }

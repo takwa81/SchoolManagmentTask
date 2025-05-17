@@ -13,6 +13,7 @@ namespace SchoolManagement.Domain.Entities
         public int StudentId { get; set; }
         public float Score { get; set; }
 
+        public string? Feedback { get; set; }
         public Assignment Assignment { get; set; }
         public User Student { get; set; }
     }

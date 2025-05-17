@@ -4,6 +4,9 @@ using SchoolManagement.Application.Interfaces;
 using SchoolManagement.Application.Responses;
 using SchoolManagement.Domain.Entities;
 using SchoolManagement.Infrastructure.Data;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
+using SchoolManagement.Domain.Enums;
 
 namespace SchoolManagement.Infrastructure.Services
 {
@@ -11,15 +14,25 @@ namespace SchoolManagement.Infrastructure.Services
     {
         private readonly AppDbContext _db;
 
-        public CourseService(AppDbContext db)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public CourseService(AppDbContext db, IHttpContextAccessor httpContextAccessor)
         {
             _db = db;
+            _httpContextAccessor = httpContextAccessor;
         }
+
 
         public async Task<ApiResponse<CourseDto>> CreateAsync(CreateCourseRequest request)
         {
             try
             {
+                var teacher = await _db.Users.FirstOrDefaultAsync(u => u.Id == request.TeacherId && u.Role == UserRole.Teacher);
+
+                if (teacher == null)
+                {
+                    return ApiResponse<CourseDto>.Fail("Invalid Teacher ID: No teacher found with the specified ID.", 400);
+                }
                 var course = new Course
                 {
                     Name = request.Name,
@@ -39,7 +52,7 @@ namespace SchoolManagement.Infrastructure.Services
                     Name = result.Name,
                     TeacherId = result.TeacherId,
                     TeacherName = result.Teacher.FullName
-                }, "Course created");
+                }, "Course created successfully.");
             }
             catch (Exception ex)
             {
@@ -91,23 +104,71 @@ namespace SchoolManagement.Infrastructure.Services
             }
         }
 
-        public async Task<ApiResponse<List<CourseDto>>> GetAllAsync()
+        public async Task<ApiResponse<List<CourseDto>>> GetAllAsync(
+        string? search, string? sortBy, bool isDescending, int pageNumber, int pageSize)
         {
-            var courses = await _db.Courses.Include(c => c.Teacher).ToListAsync();
+            try
+            {
+                var user = _httpContextAccessor.HttpContext?.User;
+                var role = user?.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+                var userIdStr = user?.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
 
-            return ApiResponse<List<CourseDto>>.Success(
-                courses.Select(c => new CourseDto
+                Console.WriteLine($"[GetAllAsync] Role: {role}, User ID: {userIdStr}");
+
+                IQueryable<Course> query;
+
+                if (role == "Student" && int.TryParse(userIdStr, out var studentId))
+                {
+                    query = _db.Enrollments
+                        .Where(e => e.UserId == studentId)
+                        .Include(e => e.Course).ThenInclude(c => c.Teacher)
+                        .Select(e => e.Course)
+                        .AsQueryable();
+                }
+                else
+                {
+                    query = _db.Courses.Include(c => c.Teacher).AsQueryable();
+                }
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    query = query.Where(c =>
+                        c.Name.Contains(search) || c.Teacher.FullName.Contains(search));
+                }
+
+                query = sortBy?.ToLower() switch
+                {
+                    "name" => isDescending ? query.OrderByDescending(c => c.Name) : query.OrderBy(c => c.Name),
+                    "teacher" => isDescending ? query.OrderByDescending(c => c.Teacher.FullName) : query.OrderBy(c => c.Teacher.FullName),
+                    _ => query.OrderBy(c => c.Id)
+                };
+
+                var pagedCourses = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var result = pagedCourses.Select(c => new CourseDto
                 {
                     Id = c.Id,
                     Name = c.Name,
                     TeacherId = c.TeacherId,
                     TeacherName = c.Teacher.FullName
-                }).ToList(), "All courses");
+                }).ToList();
+
+                return ApiResponse<List<CourseDto>>.Success(result, "Courses retrieved");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<List<CourseDto>>.Fail("Failed to fetch courses: " + ex.Message, 500);
+            }
         }
 
         public async Task<ApiResponse<List<CourseDto>>> GetByTeacherAsync(int teacherId)
         {
-            var courses = await _db.Courses
+            try
+            {
+                var courses = await _db.Courses
                 .Include(c => c.Teacher)
                 .Where(c => c.TeacherId == teacherId)
                 .ToListAsync();
@@ -120,24 +181,37 @@ namespace SchoolManagement.Infrastructure.Services
                     TeacherId = c.TeacherId,
                     TeacherName = c.Teacher.FullName
                 }).ToList(), "Teacher courses");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<List<CourseDto>>.Fail("Failed to fetch courses: " + ex.Message, 500);
+            }
         }
 
         public async Task<ApiResponse<List<CourseDto>>> GetByStudentAsync(int studentId)
         {
-            var courses = await _db.Enrollments
-                .Include(e => e.Course).ThenInclude(c => c.Teacher)
-                .Where(e => e.UserId == studentId)
-                .Select(e => e.Course)
-                .ToListAsync();
+            try
+            {
+                var courses = await _db.Enrollments
+                    .Include(e => e.Course).ThenInclude(c => c.Teacher)
+                    .Where(e => e.UserId == studentId)
+                    .Select(e => e.Course)
+                    .ToListAsync();
 
-            return ApiResponse<List<CourseDto>>.Success(
-                courses.Select(c => new CourseDto
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    TeacherId = c.TeacherId,
-                    TeacherName = c.Teacher.FullName
-                }).ToList(), "Student courses");
+                return ApiResponse<List<CourseDto>>.Success(
+                    courses.Select(c => new CourseDto
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        TeacherId = c.TeacherId,
+                        TeacherName = c.Teacher.FullName
+                    }).ToList(), "Student courses");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<List<CourseDto>>.Fail("Failed to fetch courses: " + ex.Message, 500);
+            }
+            
         }
     }
 }

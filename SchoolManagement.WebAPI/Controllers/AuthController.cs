@@ -14,11 +14,7 @@ namespace SchoolManagement.WebAPI.Controllers
         private readonly IAuthService _authService;
         private readonly ILogger<AuthController> _logger;
 
-        //public AuthController(IAuthService authService)
-        //{
-        //    _authService = authService;
-        //}
-
+  
         public AuthController(IAuthService authService, ILogger<AuthController> logger)
         {
             _authService = authService;
@@ -28,6 +24,14 @@ namespace SchoolManagement.WebAPI.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                var errorMessage = string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage));
+
+                return BadRequest(ApiResponse<string>.Fail(errorMessage, 400));
+            }
             var result = await _authService.RegisterAsync(request);
             return StatusCode(result.Code, result);
         }
@@ -35,6 +39,14 @@ namespace SchoolManagement.WebAPI.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                var errorMessage = string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage));
+
+                return BadRequest(ApiResponse<string>.Fail(errorMessage, 400));
+            }
             var result = await _authService.LoginAsync(request);
             return StatusCode(result.Code, result);
         }

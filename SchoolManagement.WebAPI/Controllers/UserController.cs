@@ -17,25 +17,26 @@ namespace SchoolManagement.WebAPI.Controllers
 
         [Authorize(Roles = "Admin")]
         [HttpGet("teachers")]
-        public async Task<IActionResult> GetTeachers()
+        public async Task<IActionResult> GetTeachers([FromQuery] string? search, [FromQuery] string? sortBy = "fullname", [FromQuery] bool isDescending = false, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _userService.GetUsersByRoleAsync("Teacher");
+            var result = await _userService.GetUsersByRoleAsync("Teacher", search, sortBy, isDescending, pageNumber, pageSize);
             return StatusCode(result.Code, result);
         }
 
+
         [Authorize(Roles = "Admin")]
         [HttpGet("students")]
-        public async Task<IActionResult> GetStudents()
+        public async Task<IActionResult> GetStudents([FromQuery] string? search, [FromQuery] string? sortBy = "fullname", [FromQuery] bool isDescending = false, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _userService.GetUsersByRoleAsync("Student");
+            var result = await _userService.GetUsersByRoleAsync("Student", search, sortBy, isDescending, pageNumber, pageSize);
             return StatusCode(result.Code, result);
         }
 
         [Authorize(Roles = "Admin")]
         [HttpGet("admins")]
-        public async Task<IActionResult> GetAdmins()
+        public async Task<IActionResult> GetAdmins([FromQuery] string? search, [FromQuery] string? sortBy = "fullname", [FromQuery] bool isDescending = false, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _userService.GetUsersByRoleAsync("Admin");
+            var result = await _userService.GetUsersByRoleAsync("Admin", search, sortBy, isDescending, pageNumber, pageSize);
             return StatusCode(result.Code, result);
         }
 

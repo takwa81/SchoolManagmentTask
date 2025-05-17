@@ -13,7 +13,7 @@ namespace SchoolManagement.Application.Interfaces
         Task<ApiResponse<CourseDto>> CreateAsync(CreateCourseRequest request);
         Task<ApiResponse<CourseDto>> UpdateAsync(UpdateCourseRequest request);
         Task<ApiResponse<bool>> DeleteAsync(int courseId);
-        Task<ApiResponse<List<CourseDto>>> GetAllAsync();
+        Task<ApiResponse<List<CourseDto>>> GetAllAsync(string? search, string? sortBy, bool isDescending, int pageNumber, int pageSize);
         Task<ApiResponse<List<CourseDto>>> GetByTeacherAsync(int teacherId);
         Task<ApiResponse<List<CourseDto>>> GetByStudentAsync(int studentId);
     }

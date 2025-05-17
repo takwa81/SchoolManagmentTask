@@ -7,6 +7,7 @@ using SchoolManagement.Infrastructure.Services;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.Json;
+using SchoolManagement.WebAPI.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,7 +18,6 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new() { Title = "SchoolManagement API", Version = "v1" });
 
-    // 🔐 Add JWT support
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -71,9 +71,41 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtIssuer,
             ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey!)) 
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey!))
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = context =>
+            {
+                context.HandleResponse(); 
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+                var result = JsonSerializer.Serialize(new
+                {
+                    status = false,
+                    message = "Unauthorized: Please login",
+                    code = 401,
+                    data = (string?)null
+                });
+                return context.Response.WriteAsync(result);
+            },
+            OnForbidden = context =>
+            {
+                context.Response.StatusCode = 403;
+                context.Response.ContentType = "application/json";
+                var result = JsonSerializer.Serialize(new
+                {
+                    status = false,
+                    message = "Forbidden: You don't have permission",
+                    code = 403,
+                    data = (string?)null
+                });
+                return context.Response.WriteAsync(result);
+            }
         };
     });
+
 
 
 builder.Services.AddAuthorization();
@@ -86,6 +118,7 @@ builder.Services.AddControllers()
 
 
 
+builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 
@@ -94,6 +127,8 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication(); 
 app.UseAuthorization();
+//app.UseMiddleware<CustomAuthResponseMiddleware>();
+
 app.MapControllers();
 
 if (app.Environment.IsDevelopment())

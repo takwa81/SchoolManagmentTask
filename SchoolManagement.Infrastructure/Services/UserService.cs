@@ -20,13 +20,31 @@ namespace SchoolManagement.Infrastructure.Services
             _db = db;
         }
 
-        public async Task<ApiResponse<List<UserDto>>> GetUsersByRoleAsync(string role)
+        public async Task<ApiResponse<List<UserDto>>> GetUsersByRoleAsync(string role, string? search, string? sortBy, bool isDescending, int pageNumber, int pageSize)
         {
             try
             {
-                var normalizedRole = role.ToLower();
-                var users = await _db.Users
-                    .Where(u => u.Role.ToString().ToLower() == normalizedRole)
+                var query = _db.Users
+                    .Where(u => u.Role.ToString() == role);
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    query = query.Where(u => u.FullName.Contains(search) || u.Email.Contains(search));
+                }
+
+                if (!string.IsNullOrWhiteSpace(sortBy))
+                {
+                    query = sortBy.ToLower() switch
+                    {
+                        "fullname" => isDescending ? query.OrderByDescending(u => u.FullName) : query.OrderBy(u => u.FullName),
+                        "email" => isDescending ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email),
+                        _ => query
+                    };
+                }
+
+                var users = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
                     .Select(u => new UserDto
                     {
                         Id = u.Id,
@@ -36,11 +54,11 @@ namespace SchoolManagement.Infrastructure.Services
                     })
                     .ToListAsync();
 
-                return ApiResponse<List<UserDto>>.Success(users, "Users retrieved");
+                return ApiResponse<List<UserDto>>.Success(users, "Users fetched");
             }
             catch (Exception ex)
             {
-                return ApiResponse<List<UserDto>>.Fail("Failed to retrieve users: " + ex.Message);
+                return ApiResponse<List<UserDto>>.Fail("Failed to fetch users: " + ex.Message, 500);
             }
         }
 
