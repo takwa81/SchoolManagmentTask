@@ -146,9 +146,3 @@ Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | Student | student@school.com | password123 |
 
 > These are seeded on first run by `DbSeeder.cs`.
-
----
-
-## License
-
-This project is licensed for educational and testing use. All rights reserved.
