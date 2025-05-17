@@ -81,6 +81,12 @@ namespace SchoolManagement.Infrastructure.Services
                 if (assignment == null || student == null || student.Role != UserRole.Student)
                     return ApiResponse<string>.Fail("Invalid assignment or student", 400);
 
+                var isEnrolled = await _db.Enrollments.AnyAsync(e =>
+                e.CourseId == assignment.CourseId && e.UserId == request.StudentId);
+
+                if (!isEnrolled)
+                    return ApiResponse<string>.Fail("Student is not enrolled in the course for this assignment", 403);
+
                 var existingGrade = await _db.Grades.FirstOrDefaultAsync(g =>
                     g.AssignmentId == request.AssignmentId && g.StudentId == request.StudentId);
 
